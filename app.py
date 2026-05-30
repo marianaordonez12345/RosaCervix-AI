@@ -4,7 +4,6 @@ from ultralytics import YOLO
 import pandas as pd
 from datetime import datetime
 import os
-import urllib.request
 
 # Configuración de la página web (Título y pestaña)
 st.set_page_config(page_title="RosaCervix AI", page_icon="🌸", layout="centered")
@@ -38,14 +37,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar el modelo YOLO automáticamente desde internet para evitar el límite de peso de GitHub
+# Cargar tu modelo de Colab (YOLOv8)
 @st.cache_resource
 def load_yolo_model():
-    model_path = "yolov8n.pt" # Usamos un modelo base ultraliviano para activar tu app ya mismo
     try:
-        return YOLO(model_path)
+        # Se asume que el modelo se subió a GitHub con este nombre exacto
+        return YOLO("mejor.pt")
     except Exception as e:
-        st.error(f"Error al cargar el modelo base. Detalle: {e}")
+        st.error(f"No se encontró el archivo del modelo. Asegúrate de que se llame 'mejor.pt' en tu GitHub. Error: {e}")
         return None
 
 model = load_yolo_model()
@@ -84,31 +83,29 @@ if archivo_imagen is not None:
         elif model is None:
             st.error("❌ El modelo IA no está cargado correctamente.")
         else:
-            with st.spinner("Analizando muestra en tiempo real..."):
-                # Ejecutar predicción
+            with st.spinner("Analizando muestra con el modelo de Colab..."):
+                # Ejecutar predicción con tu mejor.pt
                 resultados = model(img)
                 
-                # Controlamos si detecta algo
+                # Controlamos si la IA detectó alguna caja (objeto)
                 if len(resultados[0].boxes) > 0:
+                    # Obtener la predicción con mayor confianza
                     mejor_box = resultados[0].boxes[0]
                     clase_id = int(mejor_box.cls[0])
                     confianza = float(mejor_box.conf[0]) * 100
+                    nombre_clase = model.names[clase_id].lower()
                     
-                    # Lógica adaptativa para pruebas rápidas
-                    if clase_id == 0:
+                    # --- LÓGICA DE DIAGNÓSTICO BASADA EN TUS ETIQUETAS ---
+                    if "normal" in nombre_clase:
                         diagnostico = "CÉLULA NORMAL"
                         st.success(f"✅ **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
                     else:
                         diagnostico = "CARCINOMA DETECTADO"
                         st.error(f"🚨 **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
                 else:
-                    # En caso de fotos externas donde la IA duda, forzamos simulación para que pruebes cómo guarda datos
-                    if "cancer" in archivo_imagen.name.lower() or "carcinoma" in archivo_imagen.name.lower():
-                        diagnostico = "CARCINOMA DETECTADO (Análisis de Google)"
-                        st.error(f"🚨 **Resultado:** {diagnostico} (Confianza simulada: 89.40%)")
-                    else:
-                        diagnostico = "CÉLULA NORMAL"
-                        st.success(f"✅ **Resultado:** {diagnostico} (Confianza simulada: 91.20%)")
+                    # Si pasa con fotos de Google muy distintas que no generan cajas de detección
+                    diagnostico = "MUESTRA NO CONCLUYENTE (IMAGEN EXTERNA)"
+                    st.warning("⚠️ **Aviso:** No se detectaron patrones claros de análisis en esta muestra. La IA no está segura debido al formato de la imagen.")
                 
                 # --- GUARDAR EN EL HISTORIAL (Excel/CSV) ---
                 nuevo_registro = {
@@ -116,7 +113,7 @@ if archivo_imagen is not None:
                     "Paciente": nombre,
                     "Edad": edad,
                     "Diagnostico": diagnostico,
-                    "Confianza": f"{confianza:.2f}%" if len(resultados[0].boxes) > 0 else "90.00%"
+                    "Confianza": f"{confianza:.2f}%" if len(resultados[0].boxes) > 0 else "N/A"
                 }
                 
                 csv_path = "historial_pacientes.csv"
