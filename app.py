@@ -1,35 +1,20 @@
 import streamlit as st
-from PIL import Image
 from ultralytics import YOLO
-import os
+from PIL import Image
 
 st.set_page_config(page_title="RosaCervix AI", page_icon="🌸")
+st.title("🌸 RosaCervix AI")
 
-# Estilo visual
-st.markdown("<h1 style='text-align: center; color: #D53F8C;'>🌸 RosaCervix AI 🌸</h1>", unsafe_allow_html=True)
+# Cargamos el modelo
+model = YOLO("mejor.pt")
 
-# Carga del modelo (protegida)
-@st.cache_resource
-def cargar_modelo():
-    if os.path.exists("mejor.pt"):
-        return YOLO("mejor.pt")
-    return None
+archivo = st.file_uploader("Cargar imagen", type=["jpg", "png"])
 
-model = cargar_modelo()
-
-# Formulario
-nombre = st.text_input("Nombre de la paciente:")
-archivo_imagen = st.file_uploader("Cargar imagen:", type=["jpg", "png"])
-
-if archivo_imagen:
-    img = Image.open(archivo_imagen)
-    st.image(img, width=300)
+if archivo:
+    img = Image.open(archivo)
+    st.image(img, use_container_width=True)
     
-    if st.button("Iniciar Análisis"):
-        if model:
-            with st.spinner("Analizando..."):
-                res = model(img)
-                # Resultado real
-                st.success("✅ ANÁLISIS COMPLETADO")
-        else:
-            st.error("Error: El modelo no se encontró en GitHub.")
+    if st.button("Analizar"):
+        with st.spinner("Procesando..."):
+            resultados = model(img)
+            st.success("✅ Análisis completado.")
