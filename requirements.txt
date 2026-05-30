@@ -2,3 +2,4 @@ streamlit
 ultralytics
 pillow
 pandas
+numpy==1.26.4
