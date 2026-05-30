@@ -4,7 +4,6 @@ from ultralytics import YOLO
 import pandas as pd
 from datetime import datetime
 import os
-import urllib.request
 
 # Configuración de la página web (Título y pestaña)
 st.set_page_config(page_title="RosaCervix AI", page_icon="🌸", layout="centered")
@@ -38,31 +37,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar tu modelo real (YOLOv8)
+# Cargar tu modelo real usando el nombre exacto con el que se descargó
 @st.cache_resource
 def load_yolo_model():
-    model_path = "mejor.pt"
-    
-    # URL DE DESCARGA DIRECTA (Si tu archivo pesa más de 25MB y GitHub lo rechaza)
-    # Reemplaza esto con un enlace directo si lo subiste a Drive, Dropbox o Hugging Face
-    url_modelo_externo = "https://huggingface.co/marianaordonez12345/RosaCervix-IA/resolve/main/mejor.pt"
-    
+    # Aquí ya está corregido para que busque tu archivo con paréntesis y espacios
+    model_path = "mejor (3).pt"
     try:
-        # 1. Intentar buscarlo de forma local en GitHub
-        if os.path.exists(model_path) and os.path.getsize(model_path) > 1000000:
+        if os.path.exists(model_path):
             return YOLO(model_path)
-            
-        # 2. Si no existe o pesa 0 bytes, intenta descargarlo del link externo
-        if url_modelo_externo != "TU_ENLACE_DIRECTO_AQUI":
-            with st.spinner("Descargando el modelo de Inteligencia Artificial... Por favor espera."):
-                urllib.request.urlretrieve(url_modelo_externo, model_path)
-            return YOLO(model_path)
-            
-        # 3. Si no hay link externo, intenta cargar lo que haya en GitHub
-        return YOLO(model_path)
-        
+        else:
+            st.error(f"El archivo '{model_path}' no se encuentra en tu carpeta de GitHub. Asegúrate de haberlo subido con ese nombre exacto.")
+            return None
     except Exception as e:
-        st.error(f"Error al cargar el cerebro de la IA (mejor.pt). Detalle: {e}")
+        st.error(f"Error al abrir el archivo del modelo. Detalle: {e}")
         return None
 
 model = load_yolo_model()
@@ -90,29 +77,25 @@ st.write("---")
 if archivo_imagen is not None:
     img = Image.open(archivo_imagen)
     
-    # Mostrar la imagen cargada de forma bonita
     st.markdown("### 🔬 Muestra Cargada")
     st.image(img, caption="Frotis Cervical", width=300)
     
-    # Botón Rosa para Analizar
     if st.button("✨ Iniciar Análisis con IA"):
         if not nombre:
             st.warning("⚠️ Por favor, introduce el nombre de la paciente antes de continuar.")
         elif model is None:
-            st.error("❌ El modelo de IA no está disponible o el archivo 'mejor.pt' está vacío.")
+            st.error("❌ El modelo de IA no está disponible en este momento.")
         else:
             with st.spinner("Analizando muestra biológica con tu modelo de Roboflow..."):
-                # Ejecutar predicción real sobre la imagen de Google o microscopio
                 resultados = model(img)
                 
-                # Verificar si el modelo encontró alguna anormalidad o célula clasificada
                 if len(resultados[0].boxes) > 0:
                     mejor_box = resultados[0].boxes[0]
                     clase_id = int(mejor_box.cls[0])
                     confianza = float(mejor_box.conf[0]) * 100
                     nombre_clase = model.names[clase_id].lower()
                     
-                    # Diagnóstico basado estrictamente en tus dos etiquetas de Roboflow
+                    # Diagnóstico basado estrictamente en tus dos clases de Roboflow
                     if "normal" in nombre_clase:
                         diagnostico = "CÉLULA NORMAL"
                         st.success(f"✅ **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
@@ -120,9 +103,9 @@ if archivo_imagen is not None:
                         diagnostico = "CARCINOMA DETECTADO"
                         st.error(f"🚨 **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
                 else:
-                    # Si el modelo no genera cajas de detección (común con imágenes externas muy diferentes)
+                    # Mensaje clínico honesto si la IA no reconoce patrones en la foto externa de Google
                     diagnostico = "MUESTRA NO CONCLUYENTE"
-                    st.warning("⚠️ **Aviso:** El modelo no detectó patrones familiares en esta imagen externa. La resolución o tinción difiere de tu dataset.")
+                    st.warning("⚠️ **Aviso:** El modelo no detectó patrones claros en esta imagen externa. La resolución o tinción difiere de tus 170 fotos originales.")
                     confianza = 0.0
                 
                 # --- GUARDAR EN EL HISTORIAL (Excel/CSV) ---
