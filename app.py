@@ -45,7 +45,7 @@ def load_yolo_model():
     
     # URL DE DESCARGA DIRECTA (Si tu archivo pesa más de 25MB y GitHub lo rechaza)
     # Reemplaza esto con un enlace directo si lo subiste a Drive, Dropbox o Hugging Face
-    url_modelo_externo = "https://huggingface.co/TU_USUARIO_DE_HF/RosaCervix-IA/resolve/main/mejor.pt"
+    url_modelo_externo = "https://huggingface.co/marianaordonez12345/RosaCervix-IA/resolve/main/mejor.pt"
     
     try:
         # 1. Intentar buscarlo de forma local en GitHub
