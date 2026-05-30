@@ -38,14 +38,31 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar el modelo YOLO automáticamente desde internet para evitar el límite de peso de GitHub
+# Cargar tu modelo real (YOLOv8)
 @st.cache_resource
 def load_yolo_model():
-    model_path = "yolov8n.pt" # Usamos un modelo base ultraliviano para activar tu app ya mismo
+    model_path = "mejor.pt"
+    
+    # URL DE DESCARGA DIRECTA (Si tu archivo pesa más de 25MB y GitHub lo rechaza)
+    # Reemplaza esto con un enlace directo si lo subiste a Drive, Dropbox o Hugging Face
+    url_modelo_externo = "TU_ENLACE_DIRECTO_AQUI" 
+    
     try:
+        # 1. Intentar buscarlo de forma local en GitHub
+        if os.path.exists(model_path) and os.path.getsize(model_path) > 1000000:
+            return YOLO(model_path)
+            
+        # 2. Si no existe o pesa 0 bytes, intenta descargarlo del link externo
+        if url_modelo_externo != "TU_ENLACE_DIRECTO_AQUI":
+            with st.spinner("Descargando el modelo de Inteligencia Artificial... Por favor espera."):
+                urllib.request.urlretrieve(url_modelo_externo, model_path)
+            return YOLO(model_path)
+            
+        # 3. Si no hay link externo, intenta cargar lo que haya en GitHub
         return YOLO(model_path)
+        
     except Exception as e:
-        st.error(f"Error al cargar el modelo base. Detalle: {e}")
+        st.error(f"Error al cargar el cerebro de la IA (mejor.pt). Detalle: {e}")
         return None
 
 model = load_yolo_model()
@@ -82,33 +99,31 @@ if archivo_imagen is not None:
         if not nombre:
             st.warning("⚠️ Por favor, introduce el nombre de la paciente antes de continuar.")
         elif model is None:
-            st.error("❌ El modelo IA no está cargado correctamente.")
+            st.error("❌ El modelo de IA no está disponible o el archivo 'mejor.pt' está vacío.")
         else:
-            with st.spinner("Analizando muestra en tiempo real..."):
-                # Ejecutar predicción
+            with st.spinner("Analizando muestra biológica con tu modelo de Roboflow..."):
+                # Ejecutar predicción real sobre la imagen de Google o microscopio
                 resultados = model(img)
                 
-                # Controlamos si detecta algo
+                # Verificar si el modelo encontró alguna anormalidad o célula clasificada
                 if len(resultados[0].boxes) > 0:
                     mejor_box = resultados[0].boxes[0]
                     clase_id = int(mejor_box.cls[0])
                     confianza = float(mejor_box.conf[0]) * 100
+                    nombre_clase = model.names[clase_id].lower()
                     
-                    # Lógica adaptativa para pruebas rápidas
-                    if clase_id == 0:
+                    # Diagnóstico basado estrictamente en tus dos etiquetas de Roboflow
+                    if "normal" in nombre_clase:
                         diagnostico = "CÉLULA NORMAL"
                         st.success(f"✅ **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
                     else:
                         diagnostico = "CARCINOMA DETECTADO"
                         st.error(f"🚨 **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
                 else:
-                    # En caso de fotos externas donde la IA duda, forzamos simulación para que pruebes cómo guarda datos
-                    if "cancer" in archivo_imagen.name.lower() or "carcinoma" in archivo_imagen.name.lower():
-                        diagnostico = "CARCINOMA DETECTADO (Análisis de Google)"
-                        st.error(f"🚨 **Resultado:** {diagnostico} (Confianza simulada: 89.40%)")
-                    else:
-                        diagnostico = "CÉLULA NORMAL"
-                        st.success(f"✅ **Resultado:** {diagnostico} (Confianza simulada: 91.20%)")
+                    # Si el modelo no genera cajas de detección (común con imágenes externas muy diferentes)
+                    diagnostico = "MUESTRA NO CONCLUYENTE"
+                    st.warning("⚠️ **Aviso:** El modelo no detectó patrones familiares en esta imagen externa. La resolución o tinción difiere de tu dataset.")
+                    confianza = 0.0
                 
                 # --- GUARDAR EN EL HISTORIAL (Excel/CSV) ---
                 nuevo_registro = {
@@ -116,7 +131,7 @@ if archivo_imagen is not None:
                     "Paciente": nombre,
                     "Edad": edad,
                     "Diagnostico": diagnostico,
-                    "Confianza": f"{confianza:.2f}%" if len(resultados[0].boxes) > 0 else "90.00%"
+                    "Confianza": f"{confianza:.2f}%" if confianza > 0 else "N/A"
                 }
                 
                 csv_path = "historial_pacientes.csv"
