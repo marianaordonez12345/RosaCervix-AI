@@ -19,9 +19,13 @@ st.markdown("""
 
 st.markdown("<h1>🌸 RosaCervix AI 🌸</h1>", unsafe_allow_html=True)
 
-# Carga del modelo (Protegida)
-model_path = "mejor (3).pt"
-model = YOLO(model_path) if os.path.exists(model_path) else None
+# Carga del modelo (Más eficiente)
+@st.cache_resource
+def get_model():
+    model_path = "mejor (3).pt"
+    if os.path.exists(model_path):
+        return YOLO(model_path)
+    return None
 
 # Datos de la paciente
 col1, col2 = st.columns(2)
@@ -37,11 +41,18 @@ if archivo_imagen:
     st.image(img, caption="Muestra cargada", width=300)
     
     if st.button("✨ Iniciar Análisis con IA"):
+        model = get_model()
         if model is None:
-            st.error("El modelo aún se está cargando. Espera un momento.")
+            st.error("Error: El modelo no se encuentra en el servidor. Revisa si el archivo 'mejor (3).pt' está en tu GitHub.")
         else:
             with st.spinner("Analizando..."):
                 resultados = model(img)
-                # Lógica de resultado
-                st.success("✅ RESULTADO: CÉLULA NORMAL (Confianza: 91.20%)")
-                st.info("Nota: Análisis basado en tu dataset.")
+                # Aquí obtenemos el resultado real
+                clase_id = int(resultados[0].boxes[0].cls[0])
+                nombre_clase = model.names[clase_id].lower()
+                confianza = float(resultados[0].boxes[0].conf[0]) * 100
+                
+                if "normal" in nombre_clase:
+                    st.success(f"✅ RESULTADO: CÉLULA NORMAL (Confianza: {confianza:.2f}%)")
+                else:
+                    st.error(f"🚨 RESULTADO: CARCINOMA DETECTADO (Confianza: {confianza:.2f}%)")
