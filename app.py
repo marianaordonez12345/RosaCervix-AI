@@ -34,6 +34,9 @@ st.markdown("""
         background-color: #B83280 !important;
         color: white !important;
     }
+    .css-10trblm {
+        color: #B83280 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -41,10 +44,9 @@ st.markdown("""
 @st.cache_resource
 def load_yolo_model():
     try:
-        # Se asume que el modelo se subió a GitHub con este nombre exacto
-        return YOLO("mejor.pt")
+        return YOLO("best.pt")
     except Exception as e:
-        st.error(f"No se encontró el archivo del modelo. Asegúrate de que se llame 'mejor.pt' en tu GitHub. Error: {e}")
+        st.error(f"No se encontró el archivo 'best.pt'. Asegúrate de que esté en la misma carpeta. Error: {e}")
         return None
 
 model = load_yolo_model()
@@ -84,47 +86,45 @@ if archivo_imagen is not None:
             st.error("❌ El modelo IA no está cargado correctamente.")
         else:
             with st.spinner("Analizando muestra con el modelo de Colab..."):
-                # Ejecutar predicción con tu mejor.pt
+                # Ejecutar predicción con tu best.pt
                 resultados = model(img)
                 
-                # Controlamos si la IA detectó alguna caja (objeto)
-                if len(resultados[0].boxes) > 0:
-                    # Obtener la predicción con mayor confianza
+                if len(resultados[0].boxes) == 0:
+                    st.info("No se detectaron anomalías claras en esta muestra específica.")
+                else:
+                    # Obtener la predicción más confiable
                     mejor_box = resultados[0].boxes[0]
                     clase_id = int(mejor_box.cls[0])
                     confianza = float(mejor_box.conf[0]) * 100
-                    nombre_clase = model.names[clase_id].lower()
+                    nombre_clase = model.names[clase_id]
                     
-                    # --- LÓGICA DE DIAGNÓSTICO BASADA EN TUS ETIQUETAS ---
-                    if "normal" in nombre_clase:
+                    # Determinar el diagnóstico
+                    if "carcinoma" in nombre_clase.lower() or "abnormal" in nombre_clase.lower():
+                        diagnostico = "CARCINOMA DETECTADO / ANORMAL"
+                        st.error(f"🚨 **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
+                    else:
                         diagnostico = "CÉLULA NORMAL"
                         st.success(f"✅ **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
-                    else:
-                        diagnostico = "CARCINOMA DETECTADO"
-                        st.error(f"🚨 **Resultado:** {diagnostico} (Confianza: {confianza:.2f}%)")
-                else:
-                    # Si pasa con fotos de Google muy distintas que no generan cajas de detección
-                    diagnostico = "MUESTRA NO CONCLUYENTE (IMAGEN EXTERNA)"
-                    st.warning("⚠️ **Aviso:** No se detectaron patrones claros de análisis en esta muestra. La IA no está segura debido al formato de la imagen.")
-                
-                # --- GUARDAR EN EL HISTORIAL (Excel/CSV) ---
-                nuevo_registro = {
-                    "Fecha": fecha.strftime("%Y-%m-%d"),
-                    "Paciente": nombre,
-                    "Edad": edad,
-                    "Diagnostico": diagnostico,
-                    "Confianza": f"{confianza:.2f}%" if len(resultados[0].boxes) > 0 else "N/A"
-                }
-                
-                csv_path = "historial_pacientes.csv"
-                if os.path.exists(csv_path):
-                    df = pd.read_csv(csv_path)
-                    df = pd.concat([df, pd.DataFrame([nuevo_registro])], ignore_index=True)
-                else:
-                    df = pd.DataFrame([nuevo_registro])
                     
-                df.to_csv(csv_path, index=False)
-                st.toast("💾 ¡Datos guardados en el historial médico!", icon="📥")
+                    # --- GUARDAR EN EL HISTORIAL (Excel/CSV) ---
+                    nuevo_registro = {
+                        "Fecha": fecha.strftime("%Y-%m-%d"),
+                        "Paciente": nombre,
+                        "Edad": edad,
+                        "Diagnostico": diagnostico,
+                        "Confianza": f"{confianza:.2f}%"
+                    }
+                    
+                    csv_path = "historial_pacientes.csv"
+                    if os.path.exists(csv_path):
+                        df = pd.read_csv(csv_path)
+                        # Reemplazo de append por concat para evitar advertencias de versiones futuras de pandas
+                        df = pd.concat([df, pd.DataFrame([nuevo_registro])], ignore_index=True)
+                    else:
+                        df = pd.DataFrame([nuevo_registro])
+                        
+                    df.to_csv(csv_path, index=False)
+                    st.toast("💾 ¡Datos guardados en el historial médico!", icon="📥")
 
 st.write("---")
 
